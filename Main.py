@@ -243,7 +243,7 @@ class Flame:
             for object in objects:
                 if object.fighter and object.x == flame.x and object.y == flame.y:
                     object.fighter.take_damage(self.heat, "FIRE! FIRE EVERYWHERE!")
-                    message('Flames burn ' + target.name + ' for ' + str(heat) + ' hit points.')
+                    message('Flames burn ' + object.name + ' for ' + str(self.heat) + ' hit points.')
         else:
             objects.remove(flame)
                       
@@ -582,7 +582,7 @@ def place_objects(room):
                 item_component = Item(use_function=wild_shot)
                 item = Object(x, y, '#', 'Wild Shot', libtcod.light_yellow, item=item_component)
             
-            elif dice >80 and dice<100:
+            elif dice >80 and dice<90:
                 item_component = Item(use_function=throw_molotov)
                 item = Object(x, y, 'm', 'Molotov Cocktail', libtcod.light_red, item = item_component)
             
