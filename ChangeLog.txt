@@ -1,0 +1,14 @@
+a_0.02 Change Log:
+
+-Zombies now 75% less braindead (no more running into each other and doorframes)
+-Numpad controls enabled! (Everybody is a king!)
+-XP bar woop
+-'?' now shows all controls
+
+a_0.03 Change Log:
+
+-Stopped player spawning ontop of zombies (sorry Anne you can't use them as transport :P)
+-Improved game balance (kinda)
+-Death messages implimented woot!(soon to be leaderboard)
+-Using an item now counts as a turn
+-bandages now heal 1/3 of the total damage done to the character

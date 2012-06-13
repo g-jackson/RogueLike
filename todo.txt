@@ -1,0 +1,19 @@
+RED
+-mouse attacking
+-make a proper file system
+-make items take a turn
+
+
+
+ORANGE
+-make save files work
+-sanity meter
+-panic meter
+-hunger meter
+-score board
+-needs more 'splosions
+
+
+
+GREEN
+-end game
