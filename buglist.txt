@@ -1,0 +1,8 @@
+Lighting:
+-corridors can be in the same place as the corner of a room (in screenshot folder)
+-vision is slightly less to the right than left (in screenshot folder)
+
+
+
+
+
