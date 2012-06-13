@@ -243,7 +243,7 @@ class Flame:
             for object in objects:
                 if object.fighter and object.x == flame.x and object.y == flame.y:
                     object.fighter.take_damage(self.heat, "FIRE! FIRE EVERYWHERE!")
-                    message('Flames burn ' + object.name + ' for ' + str(self.heat) + ' hit points.')
+                    message('Flames burn ' + object.name + ' for ' + str(self.heat) + ' hit points.', libtcod.red)
         else:
             objects.remove(flame)
                       
@@ -297,7 +297,8 @@ class BasicMonster:
  
             #move towards player if far away
             if monster.distance_to(player) >= 2:
-				monster.move_towards(player.x, player.y)
+                monster.move_towards(player.x, player.y)
+                Object.clear(self.owner)
  
             #close enough, attack! (if the player is still alive.)
             #close enough, attack! (if the player is still alive.)
@@ -593,7 +594,8 @@ def place_objects(room):
 				
             objects.append(item)
             item.send_to_back()  #items appear below other objects
-            item.always_visible = True	
+            item.always_visible = True
+        
 			
 def next_level():
     global dungeon_level
@@ -609,7 +611,7 @@ def next_level():
 #=============#
 #Render screen#
 #=============#
-def render_all():
+def render_all(target=False):
     global fov_map, color_dark_wall, color_light_wall
     global color_dark_ground, color_light_ground
     global fov_recompute
@@ -642,11 +644,13 @@ def render_all():
  
     #draw all objects in the list, except the player. we want it to
     #always appear over all other objects! so it's drawn later.
-    for object in objects:
-        if object != player:
-            object.draw()
-    player.draw()
- 
+    if target is False:
+        for object in objects:
+            if object != player:
+                object.draw()
+        player.draw()
+    
+        
     #blit the contents of "con" to the root console
     libtcod.console_blit(con, 0, 0, MAP_WIDTH, MAP_HEIGHT, 0, 0, 0)
  
@@ -832,22 +836,29 @@ def player_move_or_attack(dx, dy):
 def target_tile(max_range=None):
     #return the position of a tile left-clicked in player's FOV (optionally in a range), or (None,None) if right-clicked.
     while True:
+        render_all(True)
         #render the screen. this erases the inventory and shows the names of objects under the mouse.
-        render_all()
         libtcod.console_flush()
+        
+        for object in objects:
+            object.draw()
  
         key = libtcod.console_check_for_keypress()
         mouse = libtcod.mouse_get_status()  #get mouse position and click status
         (x, y) = (mouse.cx, mouse.cy)
  
         if mouse.rbutton_pressed or key.vk == libtcod.KEY_ESCAPE:
+            for object in objects:
+                object.clear()
             return (None, None)  #cancel if the player right-clicked or pressed Escape
  
         #accept the target if the player clicked in FOV, and in case a range is specified, if it's in that range
         if (mouse.lbutton_pressed and libtcod.map_is_in_fov(fov_map, x, y) and
             (max_range is None or player.distance(x, y) <= max_range)):
-            return (x, y)
+            for object in objects:
+                object.clear()
 
+            return (x, y)
 def handle_keys():
     key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED)
     mouse = libtcod.mouse_get_status()
@@ -904,15 +915,16 @@ def handle_keys():
  
         elif key.vk == libtcod.KEY_RIGHT:
             player_move_or_attack(1, 0)
-            
+                        
         elif chr(key.c) == 'i':
-                #show the inventory; if an item is selected, use it
-                chosen_item = inventory_menu('Press the key next to an item to use it, or any other to cancel.\n')
-                if chosen_item is not None:
-                    chosen_item.use()  
-                    player_move_or_attack(0, 0)    
-                else: 
-                    return 'didnt-take-turn'
+            #show the inventory; if an item is selected, use it
+            chosen_item = inventory_menu('Press the key next to an item to use it, or any other to cancel.\n')
+            if chosen_item is not None:
+                chosen_item.use()  
+                player_move_or_attack(0,0)
+            else:
+                return 'didnt-take-turn'
+
                     
         else:
             #test for other keys
@@ -971,15 +983,16 @@ def wild_shot():
         message('No enemy is close enough to strike.', libtcod.red)
         return 'cancelled'
  
-    #zap it!
     message('A wild gunshot hits ' + monster.name + ' with a loud blast! The damage is '
         + str(WILD_SHOT_DAMAGE) + ' hit points.', libtcod.light_blue)
     monster.fighter.take_damage(WILD_SHOT_DAMAGE, "wild_shot")		
 
 def throw_gernade():
+
     #ask the player for a target tile to throw a gernade at
     message('Left-click a target tile for the gernade, or right-click to cancel.', libtcod.light_cyan)
     (x, y) = target_tile()
+
     if x is None: return 'cancelled'
     message('The gernade explodes, harming everything within ' + str(GERNADE_RADIUS) + ' tiles!', libtcod.orange)
     
@@ -997,8 +1010,7 @@ def throw_molotov():
     
     flame_component = Flame( duration=5, heat=5, spread=0)
     fire = Object(x, y, ',', 'flame', libtcod.red, blocks=False, flame = flame_component)      
-    objects.append(fire)
-    fire.send_to_back()    
+    objects.append(fire)   
         
 #=============#
 #Save and Load#
@@ -1094,10 +1106,11 @@ def play_game():
         #let monsters take their turn
         if game_state == 'playing' and player_action != 'didnt-take-turn':
             for object in objects:
-                if object.ai:
-                    object.ai.take_turn()
                 if object.flame:
                     object.flame.take_turn()
+                if object.ai:
+                    object.ai.take_turn()
+        
 
 def main_menu():
     # img = libtcod.image_load('menu_background.png')
