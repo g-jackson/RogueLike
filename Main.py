@@ -820,7 +820,10 @@ def target_tile(max_range=None):
 
 def handle_keys():
     key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED)
- 
+    mouse = libtcod.mouse_get_status()
+    (x, y) = (mouse.cx, mouse.cy)
+    (mousex, mousey) = (x - player.x, y - player.y)   
+    
     if key.vk == libtcod.KEY_ENTER and key.lalt:
         #Alt+Enter: toggle fullscreen
         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
@@ -853,7 +856,8 @@ def handle_keys():
         elif key.vk == libtcod.KEY_KP9:
             player_move_or_attack( 1,-1)   
              
-        
+        elif (mouse.lbutton_pressed and mousex < 2 and mousex > -2 and mousey < 2 and mousey > -2):
+            player_move_or_attack(mousex, mousey)
         
         elif key.vk == libtcod.KEY_UP:
             player_move_or_attack(0, -1)          

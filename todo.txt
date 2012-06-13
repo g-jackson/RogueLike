@@ -1,8 +1,6 @@
 RED
 -mouse attacking
 -make a proper file system
--make items take a turn
-
 
 
 ORANGE
