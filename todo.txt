@@ -1,5 +1,4 @@
 RED
--mouse attacking
 -make a proper file system
 
 
@@ -7,7 +6,6 @@ ORANGE
 -make save files work
 -sanity meter
 -panic meter
--hunger meter
 -score board
 -needs more 'splosions
 

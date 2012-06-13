@@ -4,7 +4,7 @@ run main.exe
 
 Controls:
 
-arrows 		= movement
+arrows/numpad/mouseclick = movement
 i 		= inventory
 g		= pick up item at player's feet
 d		= drop an item in inventory

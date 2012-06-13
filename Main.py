@@ -78,7 +78,7 @@ class Object:
 
     #this is a generic object: the player, a monster, an item, the stairs...
     #it's always represented by a character on screen.
-    def __init__(self, x, y, char, name, color, blocks=False, always_visible=False, fighter=None, ai=None, item=None):
+    def __init__(self, x, y, char, name, color, blocks=False, always_visible=False, fighter=None, ai=None, item=None, flame=None):
    
         self.x = x
         self.y = y
@@ -88,6 +88,10 @@ class Object:
         self.blocks = blocks
         self.always_visible = always_visible  
 		
+        self.flame =flame
+        if self.flame:
+            self.flame.owner = self
+            
         self.fighter = fighter
         if self.fighter:  #let the fighter component know who owns it
             self.fighter.owner = self
@@ -167,8 +171,7 @@ class Object:
             if moved is not True:
                 self.move(dx,0)
                 moved = True
-
-            
+                    
 	#return the distance to another object 
     def distance_to(self, other):
         dx = other.x - self.x
@@ -226,6 +229,24 @@ def target_monster(max_range=None):
             if obj.x == x and obj.y == y and obj.fighter and obj != player:
                 return obj	
 
+class Flame:
+    def __init__(self, duration, heat, spread):
+        self.max_duration = duration
+        self.duration = duration
+        self.heat = heat
+        self.spread = spread
+        
+    def take_turn(self):
+        flame = self.owner
+        if self.duration > 0:
+            self.duration -= 1
+            for object in objects:
+                if object.fighter and object.x == flame.x and object.y == flame.y:
+                    object.fighter.take_damage(self.heat, "FIRE! FIRE EVERYWHERE!")
+                    message('Flames burn ' + target.name + ' for ' + str(heat) + ' hit points.')
+        else:
+            objects.remove(flame)
+                      
 class Fighter:
     #combat-related properties and methods (monster, player, NPC).
     def __init__(self, hp, defense, power,xp, death_function=None):
@@ -331,7 +352,7 @@ def monster_death(monster, cause):
     monster.ai = None
     monster.name = 'remains of ' + monster.name
     monster.send_to_back()
- 
+      
 class Item:
     #an item that can be picked up and used.
     def __init__(self, use_function=None):
@@ -551,18 +572,22 @@ def place_objects(room):
         if not is_blocked(x, y):		
 
             dice = libtcod.random_get_int(0, 0, 100)
-            if dice < 70:
-                #create a bandage (70% chance)
+            if dice < 65:
+                #create a bandage (65% chance)
                 item_component = Item(use_function=use_bandage)
                 item = Object(x, y, '!', 'Bandage', libtcod.violet, item=item_component)
 				
-            elif dice >70 and dice<80:
-                #create a wild shot (30% chance)
+            elif dice >65 and dice<80:
+                #create a wild shot (20% chance)
                 item_component = Item(use_function=wild_shot)
                 item = Object(x, y, '#', 'Wild Shot', libtcod.light_yellow, item=item_component)
             
+            elif dice >80 and dice<100:
+                item_component = Item(use_function=throw_molotov)
+                item = Object(x, y, 'm', 'Molotov Cocktail', libtcod.light_red, item = item_component)
+            
             else:
-                #create a wild shot (30% chance)
+                #create a hand gernade (15% chance)
                 item_component = Item(use_function=throw_gernade)
                 item = Object(x, y, '#', 'Hand Gernade', libtcod.light_red, item=item_component)
 				
@@ -753,7 +778,12 @@ def inventory_menu(header):
     #if an item was chosen, return it
     if index is None or len(inventory) == 0: return None
     return inventory[index].item
-    
+
+def quit_confirmation():
+    options = ["yes" , "no"]
+    index = menu("Are you sure you want to quit?", options, INVENTORY_WIDTH)
+    return index
+
 def msgbox(text, width=50):
     menu(text, [], width)  #use menu() as a sort of "message box"
         
@@ -829,7 +859,11 @@ def handle_keys():
         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
  
     elif key.vk == libtcod.KEY_ESCAPE:
-        return 'exit'  #exit game
+        if quit_confirmation() ==0:
+            return 'exit'  #exit game
+        else: 
+            return 'didnt-take-turn'
+            
 
     if game_state == 'dead':
         key_char = chr(key.c)
@@ -877,6 +911,9 @@ def handle_keys():
                 if chosen_item is not None:
                     chosen_item.use()  
                     player_move_or_attack(0, 0)    
+                else: 
+                    return 'didnt-take-turn'
+                    
         else:
             #test for other keys
             key_char = chr(key.c)
@@ -945,12 +982,24 @@ def throw_gernade():
     (x, y) = target_tile()
     if x is None: return 'cancelled'
     message('The gernade explodes, harming everything within ' + str(GERNADE_RADIUS) + ' tiles!', libtcod.orange)
-    1
+    
     for obj in objects:  #damage every fighter in range, including the player
         if obj.distance(x, y) <= GERNADE_RADIUS and obj.fighter:
             message('The ' + obj.name + ' gets damaged for ' + str(GERNADE_DAMAGE) + ' hit points.', libtcod.orange)
             obj.fighter.take_damage(GERNADE_DAMAGE, "......your own hand gernade....nice..")
 
+def throw_molotov():
+    #ask the player for a target tile to throw a gernade at
+    message('Left-click a target tile for the molotov, or right-click to cancel.', libtcod.light_cyan)
+    (x, y) = target_tile()
+    if x is None: 
+        return 'cancelled'
+    
+    flame_component = Flame( duration=5, heat=5, spread=0)
+    fire = Object(x, y, ',', 'flame', libtcod.red, blocks=False, flame = flame_component)      
+    objects.append(fire)
+    fire.send_to_back()    
+        
 #=============#
 #Save and Load#
 #=============#
@@ -1047,6 +1096,8 @@ def play_game():
             for object in objects:
                 if object.ai:
                     object.ai.take_turn()
+                if object.flame:
+                    object.flame.take_turn()
 
 def main_menu():
     # img = libtcod.image_load('menu_background.png')
