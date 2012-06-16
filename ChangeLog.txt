@@ -17,4 +17,10 @@ a_0.03 Change Log:
 -basic mouse move/attack
 -woop molotovs! (they're not great atm but useful if youre being chased down a corridor :D)
 -no more accidental esc to quit the game
+-fixed molotovs (Finally T_T)
 
+xx/06/12
+a_0.04 Change Log:
+-alert level added; if you make too much noise with weapons zombies will be alerted
+-molotovs now spread flames, burn all the things :D
+- 5 on the keypad now picks up items and uses stairs

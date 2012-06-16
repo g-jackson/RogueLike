@@ -203,6 +203,7 @@ class Object:
 #===============================#
 #Object Functions and SubClasses#
 #===============================#
+
 def closest_monster(max_range):
     #find closest enemy, up to a maximum range, and in the player's FOV
     closest_enemy = None
@@ -240,10 +241,27 @@ class Flame:
         flame = self.owner
         if self.duration > 0:
             self.duration -= 1
+            #damage anything thats on the flame
             for object in objects:
                 if object.fighter and object.x == flame.x and object.y == flame.y:
                     object.fighter.take_damage(self.heat, "FIRE! FIRE EVERYWHERE!")
                     message('Flames burn ' + object.name + ' for ' + str(self.heat) + ' hit points.', libtcod.red)
+            #randomly spread fire
+            new_flames = libtcod.random_get_int(0, 0, self.spread)
+            new_flames = new_flames/2 
+            while new_flames > 0:
+                x = libtcod.random_get_int(0, -1, 1)
+                y = libtcod.random_get_int(0, -1, 1)
+                x = flame.x + x
+                y = flame.y + y
+                new_flames = new_flames - 1
+                if not is_blocked(x,y):
+                    fire_spread_prevention = libtcod.random_get_int(0, 1, 3)
+                    flame_component = Flame( duration=3, heat=5, spread=(self.spread/fire_spread_prevention))
+                    fire = Object(x, y, ',', 'flame', libtcod.red, blocks=False, flame = flame_component)      
+                    objects.append(fire)  
+
+                    
         else:
             objects.remove(flame)
                       
@@ -290,10 +308,11 @@ class Fighter:
 
 class BasicMonster:
     #AI for a basic monster.
+    global alert_level
     def take_turn(self):
         #a basic monster takes its turn. If you can see it, it can see you
         monster = self.owner
-        if libtcod.map_is_in_fov(fov_map, monster.x, monster.y):
+        if libtcod.map_is_in_fov(fov_map, monster.x, monster.y) or monster.distance_to(player) <= alert_level:
  
             #move towards player if far away
             if monster.distance_to(player) >= 2:
@@ -578,12 +597,12 @@ def place_objects(room):
                 item_component = Item(use_function=use_bandage)
                 item = Object(x, y, '!', 'Bandage', libtcod.violet, item=item_component)
 				
-            elif dice >65 and dice<80:
+            elif dice >80 and dice<85:
                 #create a wild shot (20% chance)
                 item_component = Item(use_function=wild_shot)
                 item = Object(x, y, '#', 'Wild Shot', libtcod.light_yellow, item=item_component)
             
-            elif dice >80 and dice<90:
+            elif dice >65 and dice<80:
                 item_component = Item(use_function=throw_molotov)
                 item = Object(x, y, 'm', 'Molotov Cocktail', libtcod.light_red, item = item_component)
             
@@ -594,11 +613,10 @@ def place_objects(room):
 				
             objects.append(item)
             item.send_to_back()  #items appear below other objects
-            item.always_visible = True
-        
+            item.always_visible = True      
 			
 def next_level():
-    global dungeon_level
+    global dungeon_level, alert_level
 	
     #advance to the next level
     message('You take a moment to rest, and recover your strength.', libtcod.light_violet)
@@ -606,6 +624,7 @@ def next_level():
  
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', libtcod.red)
     dungeon_level += 1
+    alert_level = alert_level//2
     make_map()  #create a fresh new level!
     initialize_fov()			
 #=============#
@@ -673,8 +692,9 @@ def render_all(target=False):
     render_bar(1, 2, BAR_WIDTH, 'XP', player.fighter.xp, LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR,
         libtcod.light_green, libtcod.darker_green)    
 
-    libtcod.console_print_left(panel, 1, 3, libtcod.BKGND_NONE, 'Dungeon level ' + str(dungeon_level))		
-    
+    libtcod.console_print_left(panel, 1, 3, libtcod.BKGND_NONE, 'Player level ' + str(player.level))
+    libtcod.console_print_left(panel, 1, 4, libtcod.BKGND_NONE, 'Dungeon level ' + str(dungeon_level))	
+	
 	#display names of objects under the mouse
     libtcod.console_set_foreground_color(panel, libtcod.light_gray)
     libtcod.console_print_left(panel, 1, 0, libtcod.BKGND_NONE, get_names_under_mouse())
@@ -859,6 +879,7 @@ def target_tile(max_range=None):
                 object.clear()
 
             return (x, y)
+
 def handle_keys():
     key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED)
     mouse = libtcod.mouse_get_status()
@@ -891,7 +912,21 @@ def handle_keys():
         elif key.vk == libtcod.KEY_KP3:
             player_move_or_attack( 1, 1)   
         elif key.vk == libtcod.KEY_KP4:
-            player_move_or_attack(-1, 0)            
+            player_move_or_attack(-1, 0)
+        
+        elif key.vk == libtcod.KEY_KP5:
+            action_taken =False
+            for object in objects:  #look for an item in the player's tile
+                if object.x == player.x and object.y == player.y and object.item :
+                    object.item.pick_up()
+                    action_taken = True
+            if stairs.x == player.x and stairs.y == player.y:
+                    action_taken = True
+                    next_level()
+            if action_taken == False:
+                player_move_or_attack( 0, 0)  
+            
+            
         elif key.vk == libtcod.KEY_KP6:
             player_move_or_attack( 1, 0)   
         elif key.vk == libtcod.KEY_KP7:
@@ -899,7 +934,8 @@ def handle_keys():
         elif key.vk == libtcod.KEY_KP8:
             player_move_or_attack( 0,-1)   
         elif key.vk == libtcod.KEY_KP9:
-            player_move_or_attack( 1,-1)   
+            player_move_or_attack( 1,-1) 
+            
              
         elif (mouse.lbutton_pressed and mousex < 2 and mousex > -2 and mousey < 2 and mousey > -2):
             player_move_or_attack(mousex, mousey)
@@ -977,6 +1013,7 @@ def use_bandage():
     player.fighter.heal((player.fighter.max_hp - player.fighter.hp)/HEAL_AMOUNT)		
 		
 def wild_shot():
+    global alert_level
     #find closest enemy (inside a maximum range) and damage it
     monster = closest_monster(WILD_SHOT_RANGE)
     if monster is None:  #no enemy found within maximum range
@@ -985,9 +1022,11 @@ def wild_shot():
  
     message('A wild gunshot hits ' + monster.name + ' with a loud blast! The damage is '
         + str(WILD_SHOT_DAMAGE) + ' hit points.', libtcod.light_blue)
-    monster.fighter.take_damage(WILD_SHOT_DAMAGE, "wild_shot")		
+    monster.fighter.take_damage(WILD_SHOT_DAMAGE, "wild_shot")	
+    alert_level += 3
 
 def throw_gernade():
+    global alert_level
 
     #ask the player for a target tile to throw a gernade at
     message('Left-click a target tile for the gernade, or right-click to cancel.', libtcod.light_cyan)
@@ -1000,17 +1039,20 @@ def throw_gernade():
         if obj.distance(x, y) <= GERNADE_RADIUS and obj.fighter:
             message('The ' + obj.name + ' gets damaged for ' + str(GERNADE_DAMAGE) + ' hit points.', libtcod.orange)
             obj.fighter.take_damage(GERNADE_DAMAGE, "......your own hand gernade....nice..")
+            alert_level +=3
 
 def throw_molotov():
+    global alert_level
     #ask the player for a target tile to throw a gernade at
     message('Left-click a target tile for the molotov, or right-click to cancel.', libtcod.light_cyan)
     (x, y) = target_tile()
     if x is None: 
         return 'cancelled'
     
-    flame_component = Flame( duration=5, heat=5, spread=0)
+    flame_component = Flame( duration=5, heat=5, spread=6)
     fire = Object(x, y, ',', 'flame', libtcod.red, blocks=False, flame = flame_component)      
-    objects.append(fire)   
+    objects.append(fire)  
+    alert_level += 1
         
 #=============#
 #Save and Load#
@@ -1050,7 +1092,7 @@ def load_game():
     initialize_fov()	
 	
 def new_game():
-    global player, inventory, game_msgs, game_state, dungeon_level
+    global player, inventory, game_msgs, game_state, dungeon_level, alert_level
  
     #create object representing the player
     fighter_component = Fighter(hp=30, defense=2, power=5, xp=0, death_function=player_death)
@@ -1060,6 +1102,7 @@ def new_game():
 	
     #generate map (at this point it's not drawn to the screen)
     dungeon_level = 1
+    alert_level = 0
     make_map()
     initialize_fov()
  
@@ -1111,7 +1154,6 @@ def play_game():
                 if object.ai:
                     object.ai.take_turn()
         
-
 def main_menu():
     # img = libtcod.image_load('menu_background.png')
  
